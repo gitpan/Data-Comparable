@@ -3,8 +3,9 @@ package Data::Comparable;
 use warnings;
 use strict;
 use UNIVERSAL::require;
+use NEXT;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 
 use base 'Data::Inherited';
@@ -98,8 +99,13 @@ sub yaml_dump_comparable {
 }
 
 
-# so subclasses can call SUPER:: without worries
-sub prepare_comparable {}
+# So subclasses can call SUPER:: without worries; we want to call all such
+# methods within the class hierarchy. so use NEXT.
+
+sub prepare_comparable {
+    my $self = shift;
+    $self->NEXT::prepare_comparable(@_);
+}
 
 
 1;
