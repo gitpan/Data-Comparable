@@ -3,9 +3,8 @@ package Data::Comparable;
 use warnings;
 use strict;
 use UNIVERSAL::require;
-use NEXT;
 
-our $VERSION = '0.02';
+our $VERSION = '0.04';
 
 
 use base 'Data::Inherited';
@@ -14,41 +13,37 @@ use base 'Data::Inherited';
 sub comparable_scalar {
     my ($self, $scalar, $skip_bless) = @_;
 
+    my $class = ref $scalar;
+
+    unless ($class) {
+        # Convert the value into a string, because eq_or_diff seems to make a
+        # difference between strings and numbers.
+
+        return defined $scalar ? "$scalar" : $scalar;
+    }
+
     # Make sure the class this scalar is referencing is loaded. Suppose you
     # dump an object that has been serialized (say, from a database). Then it
     # could happen that the corresponding classes haven't been loaded, and so
     # it would dump incorrectly.
 
-    if (my $class = ref $scalar) {
-        unless ($class =~ /^(HASH|ARRAY)$/) {
-            $class->require or die $@;
+    if ($class ne 'HASH' && $class ne 'ARRAY') {
+        $class->require or die $@;
+        if (UNIVERSAL::can($scalar, 'prepare_comparable')) {
+            $scalar->prepare_comparable;
         }
     }
 
-    if (UNIVERSAL::can($scalar, 'prepare_comparable')) {
-        $scalar->prepare_comparable;
-    }
-
-    if (!ref $scalar) {
-        # Convert the value into a string, because eq_or_diff seems to make a
-        # difference between strings and numbers.
-
-        return defined $scalar ? "$scalar" : $scalar;
-    } elsif (UNIVERSAL::can($scalar, 'comparable')) {
+    if (UNIVERSAL::can($scalar, 'comparable')) {
         return $scalar->comparable($skip_bless);
-    } elsif (UNIVERSAL::isa($scalar, 'ARRAY')) {
+    } elsif ($class eq 'ARRAY') {
+        return [ map { $self->comparable_scalar($_, $skip_bless) } @$scalar ];
+    } else {
+        # else it must be a hash - we don't support other forms of blessed
+        # things yet. We could explicitly check for UNIVERSAL::isa($scalar,
+        # 'HASH'), but that's too slow for the typical case where there are
+        # huge structures composed of lists and possibly blessed hashes.
 
-        my $array =
-            [ map { $self->comparable_scalar($_, $skip_bless) } @$scalar ];
-
-        # It could be an object of a class that doesn't implement comparable,
-        # so we got into this branch, but we still want to return a properly
-        # blessed object.
-
-        bless $array, ref $scalar if ref $scalar ne 'ARRAY' && !$skip_bless;
-        return $array;
-
-    } elsif (UNIVERSAL::isa($scalar, 'HASH')) {
         my $hash;
         while (my ($key, $value) = each %$scalar) {
             $hash->{$key} = $self->comparable_scalar($value, $skip_bless);
@@ -71,8 +66,7 @@ sub comparable {
         $self->prepare_comparable;
     }
 
-    my %skip_keys = map { $_ => 1 }
-        $self->every_list('SKIP_COMPARABLE_KEYS', 1);
+    my %skip_keys = map { $_ => 1 } $self->every_list('SKIP_COMPARABLE_KEYS');
     my $copy = {};
     while (my ($key, $value) = each %$self) {
         next if exists $skip_keys{$key};
@@ -99,18 +93,16 @@ sub yaml_dump_comparable {
 }
 
 
-# So subclasses can call SUPER:: without worries; we want to call all such
-# methods within the class hierarchy. so use NEXT.
+# So subclasses can call SUPER:: without worries.
 
-sub prepare_comparable {
-    my $self = shift;
-    $self->NEXT::prepare_comparable(@_);
-}
+sub prepare_comparable {}
 
 
 1;
 
 __END__
+
+
 
 =head1 NAME
 
@@ -154,17 +146,11 @@ To define the comparable version of your object, your class has to implement
 the C<prepare_comparable()> method. There you can autovivify any hash keys you
 like or tweak your object in any way you need to make it comparable.
 
-=head1 TAGS
-
-If you talk about this module in blogs, on del.icio.us or anywhere else,
-please use the C<datacomparable> tag.
-
 =head1 BUGS AND LIMITATIONS
 
 No bugs have been reported.
 
-Please report any bugs or feature requests to
-C<bug-data-comparable@rt.cpan.org>, or through the web interface at
+Please report any bugs or feature requests through the web interface at
 L<http://rt.cpan.org>.
 
 =head1 INSTALLATION
@@ -177,16 +163,17 @@ The latest version of this module is available from the Comprehensive Perl
 Archive Network (CPAN). Visit <http://www.perl.com/CPAN/> to find a CPAN
 site near you. Or see <http://www.perl.com/CPAN/authors/id/M/MA/MARCEL/>.
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 Marcel GrE<uuml>nauer, C<< <marcel@cpan.org> >>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2007 by Marcel GrE<uuml>nauer
+Copyright 2004-2008 by the authors.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
+
 
 =cut
 
