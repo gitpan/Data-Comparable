@@ -1,5 +1,8 @@
 Revision history for Perl extension Data-Comparable
 
+1.100840  2010-03-25 21:12:27 Europe/Vienna
+    - converted the distribution to Dist::Zilla-style
+
 0.04  Thu Jul 25 15:27:43 CEST 2008 (Marcel Gruenauer <marcel@cpan.org>)
      - Changed dist style and Changes back to standard. People didn't like it -
        the nail that sticks out gets hammered down.

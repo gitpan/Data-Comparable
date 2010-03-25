@@ -1,24 +1,20 @@
-package Data::Comparable;
-
-use warnings;
+use 5.008;
 use strict;
+use warnings;
+
+package Data::Comparable;
+our $VERSION = '1.100840';
+# ABSTRACT: Present your object for comparison purposes
 use UNIVERSAL::require;
-
-our $VERSION = '0.04';
-
-
-use base 'Data::Inherited';
-
+use parent 'Data::Inherited';
 
 sub comparable_scalar {
     my ($self, $scalar, $skip_bless) = @_;
-
     my $class = ref $scalar;
-
     unless ($class) {
+
         # Convert the value into a string, because eq_or_diff seems to make a
         # difference between strings and numbers.
-
         return defined $scalar ? "$scalar" : $scalar;
     }
 
@@ -26,24 +22,22 @@ sub comparable_scalar {
     # dump an object that has been serialized (say, from a database). Then it
     # could happen that the corresponding classes haven't been loaded, and so
     # it would dump incorrectly.
-
     if ($class ne 'HASH' && $class ne 'ARRAY') {
         $class->require or die $@;
         if (UNIVERSAL::can($scalar, 'prepare_comparable')) {
             $scalar->prepare_comparable;
         }
     }
-
     if (UNIVERSAL::can($scalar, 'comparable')) {
         return $scalar->comparable($skip_bless);
     } elsif ($class eq 'ARRAY') {
         return [ map { $self->comparable_scalar($_, $skip_bless) } @$scalar ];
     } else {
+
         # else it must be a hash - we don't support other forms of blessed
         # things yet. We could explicitly check for UNIVERSAL::isa($scalar,
         # 'HASH'), but that's too slow for the typical case where there are
         # huge structures composed of lists and possibly blessed hashes.
-
         my $hash;
         while (my ($key, $value) = each %$scalar) {
             $hash->{$key} = $self->comparable_scalar($value, $skip_bless);
@@ -52,31 +46,25 @@ sub comparable_scalar {
         # It could be an object of a class that doesn't implement comparable,
         # so we got into this branch, but we still want to return a properly
         # blessed object.
-
         bless $hash, ref $scalar if ref $scalar ne 'HASH' && !$skip_bless;
         return $hash;
     }
 }
 
-
 sub comparable {
     my ($self, $skip_bless) = @_;
-
     if (UNIVERSAL::can($self, 'prepare_comparable')) {
         $self->prepare_comparable;
     }
-
     my %skip_keys = map { $_ => 1 } $self->every_list('SKIP_COMPARABLE_KEYS');
     my $copy = {};
     while (my ($key, $value) = each %$self) {
         next if exists $skip_keys{$key};
         $copy->{$key} = $self->comparable_scalar($value, $skip_bless);
     }
-
     bless $copy, ref $self unless $skip_bless;
     return $copy;
 }
-
 
 sub dump_comparable {
     my ($self, $skip_bless) = @_;
@@ -85,28 +73,27 @@ sub dump_comparable {
     Data::Dumper::Dumper($self->comparable($skip_bless));
 }
 
-
 sub yaml_dump_comparable {
     my ($self, $skip_bless) = @_;
     require YAML;
     YAML::Dump($self->comparable($skip_bless));
 }
 
-
 # So subclasses can call SUPER:: without worries.
-
-sub prepare_comparable {}
-
-
+sub prepare_comparable { }
 1;
 
+
 __END__
-
-
+=pod
 
 =head1 NAME
 
-Data::Comparable - present your object for comparison purposes
+Data::Comparable - Present your object for comparison purposes
+
+=head1 VERSION
+
+version 1.100840
 
 =head1 SYNOPSIS
 
@@ -122,6 +109,8 @@ Data::Comparable - present your object for comparison purposes
   # in some test file:
 
   use Test::Differences;
+  my $x = '...';
+  my $y = '...';
   eq_or_diff($x->comparable, $y->comparable, 'objects are equal');
 
 =head1 DESCRIPTION
@@ -146,34 +135,61 @@ To define the comparable version of your object, your class has to implement
 the C<prepare_comparable()> method. There you can autovivify any hash keys you
 like or tweak your object in any way you need to make it comparable.
 
-=head1 BUGS AND LIMITATIONS
+=head1 METHODS
 
-No bugs have been reported.
+=head2 comparable
 
-Please report any bugs or feature requests through the web interface at
-L<http://rt.cpan.org>.
+FIXME
+
+=head2 comparable_scalar
+
+FIXME
+
+=head2 dump_comparable
+
+FIXME
+
+=head2 prepare_comparable
+
+FIXME
+
+=head2 yaml_dump_comparable
+
+FIXME
 
 =head1 INSTALLATION
 
 See perlmodinstall for information and options on installing Perl modules.
 
+=head1 BUGS AND LIMITATIONS
+
+No bugs have been reported.
+
+Please report any bugs or feature requests through the web interface at
+L<http://rt.cpan.org/Public/Dist/Display.html?Name=Data-Comparable>.
+
 =head1 AVAILABILITY
 
 The latest version of this module is available from the Comprehensive Perl
-Archive Network (CPAN). Visit <http://www.perl.com/CPAN/> to find a CPAN
-site near you. Or see <http://www.perl.com/CPAN/authors/id/M/MA/MARCEL/>.
+Archive Network (CPAN). Visit L<http://www.perl.com/CPAN/> to find a CPAN
+site near you, or see
+L<http://search.cpan.org/dist/Data-Comparable/>.
 
-=head1 AUTHORS
+The development version lives at
+L<http://github.com/hanekomu/Data-Comparable/>.
+Instead of sending patches, please fork this project using the standard git
+and github infrastructure.
 
-Marcel GrE<uuml>nauer, C<< <marcel@cpan.org> >>
+=head1 AUTHOR
+
+  Marcel Gruenauer <marcel@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2004-2008 by the authors.
+This software is copyright (c) 2004 by Marcel Gruenauer.
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
-
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut
 
